@@ -1,4 +1,4 @@
-import fs from 'fs'
+import grdb from 'grdb'
 
 interface userStructure {
   id: string // 12 character default
@@ -13,54 +13,31 @@ interface userStructure {
 }
 
 let isSync: boolean = false
-let pathSync: string = ''
-let dirPathSync: string = ''
-let timeoutSync: number = 0
 let users: userStructure[] = []
 
 function syncNow (): void {
-  fs.writeFileSync(pathSync, JSON.stringify(users))
+  grdb.WriteDB('user-data', users)
   setTimeout(() => {
     if (isSync) {
       syncNow()
-    };
-  }, timeoutSync)
+    }
+  }, 1000)
 }
 
-async function startSync (path: string, timeout: number): Promise<boolean> {
-  if (path === undefined || timeout < 1000) return false
+async function startSync (): Promise<void> {
+  const readDB = async (): Promise<any[]> => JSON.parse(JSON.stringify(await Promise.resolve(grdb.ReadDB('user-data'))))
+  users = await readDB()
   isSync = true
-  pathSync = path + '/user-data.json'
-  dirPathSync = path
-  timeoutSync = timeout
-  const readFile = async (): Promise<string> => fs.readFileSync(pathSync, 'utf-8')
-  users = JSON.parse(await readFile())
   syncNow()
-  return true
 }
 
 function stopSync (): void {
   isSync = false
 }
 
-function getUsers (): userStructure[] {
-  return users
-}
-
-function getIsSync (): boolean {
-  return isSync
-}
-
-function getDirPath (): string {
-  return dirPathSync
-}
-
 const Databases = {
   startSync,
-  stopSync,
-  getUsers,
-  getIsSync,
-  getDirPath
+  stopSync
 }
 
 export default Databases
